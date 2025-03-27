@@ -2,11 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   request: NextRequest,
-  context: { params: { auth0: string } }
-) {
+  { params }: { params: { auth0: string } }
+): Promise<NextResponse> {
   try {
-    // Properly await the params
-    const params = await Promise.resolve(context.params);
     const auth0Action = params.auth0;
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get('code');

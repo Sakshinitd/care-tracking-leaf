@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import axios from 'axios';
 import Link from 'next/link';
-import { FaArrowLeft, FaCalendarAlt, FaMapMarkerAlt, FaClock, FaFileAlt } from 'react-icons/fa';
+import { FaArrowLeft, FaCalendarAlt, FaMapMarkerAlt, FaClock } from 'react-icons/fa';
 import { format } from 'date-fns';
 
 interface Location {
