@@ -3,13 +3,22 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+interface User {
+  sub: string;
+  name: string;
+  email: string;
+  picture?: string;
+  email_verified: boolean;
+  updated_at: string;
+}
+
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: () => void;
   signup: () => void;
   logout: () => void;
-  user: any | null;
+  user: User | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -24,7 +33,7 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -39,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (data.user) {
         setIsAuthenticated(true);
-        setUser(data.user);
+        setUser(data.user as User);
       } else {
         setIsAuthenticated(false);
         setUser(null);
@@ -82,5 +91,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 } 

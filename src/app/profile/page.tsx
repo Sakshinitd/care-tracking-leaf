@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from '@/utils/auth';
+import Link from "next/link";
 
 export default async function ProfilePage() {
   const session = await getSession();
@@ -46,12 +47,12 @@ export default async function ProfilePage() {
         </div>
         
         <div className="mt-6 text-center">
-          <a 
-            href="/api/auth/logout" 
-            className="inline-block bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded transition duration-200"
+          <Link
+            href="/api/auth/logout"
+            className="text-red-600 hover:text-red-800"
           >
-            Log Out
-          </a>
+            Logout
+          </Link>
         </div>
       </div>
     </div>

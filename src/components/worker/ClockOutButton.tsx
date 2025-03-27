@@ -2,33 +2,31 @@ import { useState } from 'react';
 import { FaRegClock } from 'react-icons/fa';
 import { getCurrentPosition } from '@/lib/geolocation';
 import axios from 'axios';
-import { useAuth0 } from '@auth0/auth0-react';
 
 interface ClockOutButtonProps {
+  locationPerimeterId: string;
+  locationName: string;
   onClockOutSuccess: () => void;
-  clockInTime: Date;
+}
+
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+  message?: string;
 }
 
 export default function ClockOutButton({ 
-  onClockOutSuccess,
-  clockInTime
+  locationPerimeterId, 
+  locationName,
+  onClockOutSuccess 
 }: ClockOutButtonProps) {
-  const { getAccessTokenSilently } = useAuth0();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [note, setNote] = useState('');
-
-  // Calculate time since clock in
-  const getElapsedTime = () => {
-    const now = new Date();
-    const clockIn = new Date(clockInTime);
-    const diffMs = now.getTime() - clockIn.getTime();
-    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    return `${diffHrs}h ${diffMins}m`;
-  };
 
   const handleClockOut = async () => {
     setIsLoading(true);
@@ -39,9 +37,10 @@ export default function ClockOutButton({
       const position = await getCurrentPosition();
       
       // Call clock-out API
-      const response = await axios.post('/api/clockout', {
+      await axios.post('/api/clockout', {
         latitude: position.latitude,
         longitude: position.longitude,
+        locationPerimeterId,
         note: note || undefined
       });
       
@@ -50,13 +49,14 @@ export default function ClockOutButton({
       setNote('');
       onClockOutSuccess();
 
-    } catch (error: any) {
+    } catch (error) {
       setIsLoading(false);
+      const apiError = error as ApiError;
       
-      if (error.response?.data?.error) {
-        setError(error.response.data.error);
-      } else if (error.message) {
-        setError(error.message);
+      if (apiError.response?.data?.error) {
+        setError(apiError.response.data.error);
+      } else if (apiError.message) {
+        setError(apiError.message);
       } else {
         setError('An unknown error occurred');
       }
@@ -72,12 +72,9 @@ export default function ClockOutButton({
 
   return (
     <div className="rounded-lg bg-white p-6 shadow-md">
-      <h3 className="mb-2 text-xl font-semibold text-gray-800">
-        You are currently clocked in
+      <h3 className="mb-4 text-xl font-semibold text-gray-800">
+        Clock Out from {locationName}
       </h3>
-      <p className="mb-4 text-sm text-gray-600">
-        Time since clock in: <span className="font-medium">{getElapsedTime()}</span>
-      </p>
       
       {error && (
         <div className="mb-4 rounded-md bg-red-50 p-4 text-red-800">
@@ -110,18 +107,18 @@ export default function ClockOutButton({
               className="rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
               disabled={isLoading}
             >
-              {isLoading ? 'Processing...' : 'Confirm Clock Out'}
+              {isLoading ? 'Clocking out...' : 'Clock Out'}
             </button>
           </div>
         </div>
       ) : (
         <button
           onClick={toggleNoteInput}
-          className="flex w-full items-center justify-center gap-2 rounded-md bg-red-600 px-6 py-3 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+          className="flex w-full items-center justify-center space-x-2 rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
           disabled={isLoading}
         >
           <FaRegClock className="h-5 w-5" />
-          <span>Clock Out Now</span>
+          <span>Clock Out</span>
         </button>
       )}
     </div>

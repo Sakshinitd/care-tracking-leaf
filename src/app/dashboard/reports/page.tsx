@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import axios from 'axios';
 import Link from 'next/link';
@@ -18,7 +18,7 @@ import {
   ArcElement,
 } from 'chart.js';
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
-import { format, subDays, isAfter } from 'date-fns';
+import { format, subDays } from 'date-fns';
 
 // Register ChartJS components
 ChartJS.register(
@@ -33,35 +33,75 @@ ChartJS.register(
   Legend
 );
 
+interface DailyClockIn {
+  date: string;
+  count: number;
+}
+
+interface StaffHours {
+  name: string;
+  hours: number;
+}
+
+interface DailyHours {
+  date: string;
+  hours: string;
+}
+
+interface LocationDistribution {
+  name: string;
+  count: number;
+}
+
+interface ReportData {
+  dailyClockIns: DailyClockIn[];
+  staffHours: StaffHours[];
+  avgDailyHours: DailyHours[];
+  locationDistribution: LocationDistribution[];
+  totalHours: string;
+  averageHoursPerDay: string;
+  totalStaff: number;
+}
+
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+  message?: string;
+}
+
 export default function ReportsPage() {
   const [timeRange, setTimeRange] = useState<'week' | 'month'>('week');
-  const [reportData, setReportData] = useState<any | null>(null);
+  const [reportData, setReportData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchReportData();
-  }, [timeRange]);
-
-  const fetchReportData = async () => {
+  const fetchReportData = useCallback(async () => {
     try {
       setLoading(true);
       const response = await axios.get(`/api/reports?timeRange=${timeRange}`);
       setReportData(response.data);
       setLoading(false);
-    } catch (error: any) {
-      setError(error.response?.data?.error || 'Failed to fetch report data');
+    } catch (error) {
+      const apiError = error as ApiError;
+      setError(apiError.response?.data?.error || 'Failed to fetch report data');
       setLoading(false);
     }
-  };
+  }, [timeRange]);
+
+  useEffect(() => {
+    fetchReportData();
+  }, [fetchReportData]);
 
   // For demo purposes, generate mock data when actual API is not available
-  const generateMockData = () => {
+  const generateMockData = (): ReportData => {
     // Current date
     const currentDate = new Date();
     
     // Daily clock-ins
-    const dailyClockIns = [];
+    const dailyClockIns: DailyClockIn[] = [];
     const days = timeRange === 'week' ? 7 : 30;
     
     for (let i = days - 1; i >= 0; i--) {
@@ -72,7 +112,7 @@ export default function ReportsPage() {
     }
     
     // Staff hours
-    const staffHours = [
+    const staffHours: StaffHours[] = [
       { name: 'John Doe', hours: Math.random() * 20 + 20 },
       { name: 'Jane Smith', hours: Math.random() * 20 + 20 },
       { name: 'Bob Johnson', hours: Math.random() * 20 + 20 },
@@ -81,13 +121,13 @@ export default function ReportsPage() {
     ];
     
     // Average daily hours
-    const avgDailyHours = dailyClockIns.map(day => ({
+    const avgDailyHours: DailyHours[] = dailyClockIns.map(day => ({
       date: day.date,
       hours: (Math.random() * 3 + 5).toFixed(1) // Random between 5-8 hours
     }));
     
     // Location distribution
-    const locationDistribution = [
+    const locationDistribution: LocationDistribution[] = [
       { name: 'Downtown Facility', count: Math.floor(Math.random() * 50) + 50 },
       { name: 'North Branch', count: Math.floor(Math.random() * 40) + 30 },
       { name: 'South Clinic', count: Math.floor(Math.random() * 30) + 20 },
@@ -200,11 +240,11 @@ export default function ReportsPage() {
                 <Bar
                   options={barChartOptions}
                   data={{
-                    labels: data.dailyClockIns.map((day: any) => day.date),
+                    labels: data.dailyClockIns.map((day) => day.date),
                     datasets: [
                       {
                         label: 'Number of Clock-ins',
-                        data: data.dailyClockIns.map((day: any) => day.count),
+                        data: data.dailyClockIns.map((day) => day.count),
                         backgroundColor: 'rgba(53, 162, 235, 0.5)',
                       },
                     ],
@@ -216,11 +256,11 @@ export default function ReportsPage() {
                 <Line
                   options={lineChartOptions}
                   data={{
-                    labels: data.avgDailyHours.map((day: any) => day.date),
+                    labels: data.avgDailyHours.map((day) => day.date),
                     datasets: [
                       {
                         label: 'Average Hours',
-                        data: data.avgDailyHours.map((day: any) => day.hours),
+                        data: data.avgDailyHours.map((day) => day.hours),
                         borderColor: 'rgba(75, 192, 192, 1)',
                         backgroundColor: 'rgba(75, 192, 192, 0.2)',
                       },
@@ -247,9 +287,9 @@ export default function ReportsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white">
-                      {data.staffHours.map((staff: any, index: number) => (
+                      {data.staffHours.map((staff, index) => (
                         <tr key={index}>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
+                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
                             {staff.name}
                           </td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
@@ -263,33 +303,40 @@ export default function ReportsPage() {
               </div>
               
               <div className="rounded-lg bg-white p-6 shadow-md">
-                <h3 className="mb-4 text-lg font-semibold text-gray-800">Clock-ins by Location</h3>
-                <div className="flex justify-center">
-                  <div style={{ height: '250px', width: '250px' }}>
-                    <Doughnut
-                      data={{
-                        labels: data.locationDistribution.map((loc: any) => loc.name),
-                        datasets: [
-                          {
-                            data: data.locationDistribution.map((loc: any) => loc.count),
-                            backgroundColor: [
-                              'rgba(255, 99, 132, 0.5)',
-                              'rgba(54, 162, 235, 0.5)',
-                              'rgba(255, 206, 86, 0.5)',
-                              'rgba(75, 192, 192, 0.5)',
-                            ],
-                            borderColor: [
-                              'rgba(255, 99, 132, 1)',
-                              'rgba(54, 162, 235, 1)',
-                              'rgba(255, 206, 86, 1)',
-                              'rgba(75, 192, 192, 1)',
-                            ],
-                            borderWidth: 1,
-                          },
-                        ],
-                      }}
-                    />
-                  </div>
+                <h3 className="mb-4 text-lg font-semibold text-gray-800">Location Distribution</h3>
+                <div className="h-64">
+                  <Doughnut
+                    data={{
+                      labels: data.locationDistribution.map((loc) => loc.name),
+                      datasets: [
+                        {
+                          data: data.locationDistribution.map((loc) => loc.count),
+                          backgroundColor: [
+                            'rgba(255, 99, 132, 0.5)',
+                            'rgba(54, 162, 235, 0.5)',
+                            'rgba(255, 206, 86, 0.5)',
+                            'rgba(75, 192, 192, 0.5)',
+                          ],
+                          borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                          ],
+                          borderWidth: 1,
+                        },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: 'right' as const,
+                        },
+                      },
+                    }}
+                  />
                 </div>
               </div>
             </div>

@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { FaMapMarkerAlt, FaChartLine, FaRegClock } from 'react-icons/fa';
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();

@@ -18,12 +18,14 @@ interface Cached {
   promise: Promise<typeof mongoose> | null;
 }
 
-// @ts-ignore - global mongoose for connection caching
+declare global {
+  // eslint-disable-next-line no-var
+  var mongoose: Cached | undefined;
+}
+
 let cached: Cached = global.mongoose || { conn: null, promise: null };
 
-// @ts-ignore - global mongoose for connection caching
 if (!cached) {
-  // @ts-ignore - global mongoose for connection caching
   cached = global.mongoose = { conn: null, promise: null };
 }
 

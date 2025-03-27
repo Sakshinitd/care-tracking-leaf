@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { FaRegClock } from 'react-icons/fa';
 import { getCurrentPosition } from '@/lib/geolocation';
 import axios from 'axios';
-import { useAuth0 } from '@auth0/auth0-react';
 
 interface ClockInButtonProps {
   locationPerimeterId: string;
@@ -10,12 +9,20 @@ interface ClockInButtonProps {
   onClockInSuccess: () => void;
 }
 
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+  message?: string;
+}
+
 export default function ClockInButton({ 
   locationPerimeterId, 
   locationName,
   onClockInSuccess 
 }: ClockInButtonProps) {
-  const { getAccessTokenSilently } = useAuth0();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showNoteInput, setShowNoteInput] = useState(false);
@@ -30,7 +37,7 @@ export default function ClockInButton({
       const position = await getCurrentPosition();
       
       // Call clock-in API
-      const response = await axios.post('/api/clockin', {
+      await axios.post('/api/clockin', {
         latitude: position.latitude,
         longitude: position.longitude,
         locationPerimeterId,
@@ -42,13 +49,14 @@ export default function ClockInButton({
       setNote('');
       onClockInSuccess();
 
-    } catch (error: any) {
+    } catch (error) {
       setIsLoading(false);
+      const apiError = error as ApiError;
       
-      if (error.response?.data?.error) {
-        setError(error.response.data.error);
-      } else if (error.message) {
-        setError(error.message);
+      if (apiError.response?.data?.error) {
+        setError(apiError.response.data.error);
+      } else if (apiError.message) {
+        setError(apiError.message);
       } else {
         setError('An unknown error occurred');
       }
@@ -99,24 +107,19 @@ export default function ClockInButton({
               className="rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
               disabled={isLoading}
             >
-              {isLoading ? 'Processing...' : 'Confirm Clock In'}
+              {isLoading ? 'Clocking in...' : 'Clock In'}
             </button>
           </div>
         </div>
       ) : (
-        <div className="flex flex-col space-y-4">
-          <button
-            onClick={toggleNoteInput}
-            className="flex items-center justify-center gap-2 rounded-md bg-green-600 px-6 py-3 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-            disabled={isLoading}
-          >
-            <FaRegClock className="h-5 w-5" />
-            <span>Clock In Now</span>
-          </button>
-          <p className="text-xs text-gray-500">
-            Note: You must be within the designated location perimeter to clock in.
-          </p>
-        </div>
+        <button
+          onClick={toggleNoteInput}
+          className="flex w-full items-center justify-center space-x-2 rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+          disabled={isLoading}
+        >
+          <FaRegClock className="h-5 w-5" />
+          <span>Clock In</span>
+        </button>
       )}
     </div>
   );

@@ -1,12 +1,13 @@
-import { cookies } from 'next/headers';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 export function getSession() {
   // Simple mock implementation to resolve build errors
   return null;
 }
 
-export function withApiAuthRequired(handler: Function) {
+type ApiHandler = (req: NextRequest) => Promise<NextResponse>;
+
+export function withApiAuthRequired(handler: ApiHandler) {
   return async function(req: NextRequest) {
     // Simple mock implementation
     return handler(req);

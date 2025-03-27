@@ -4,9 +4,17 @@ import connectToDatabase from '@/lib/mongodb';
 import User from '@/models/User';
 import LocationPerimeter from '@/models/LocationPerimeter';
 
+interface Session {
+  user?: {
+    sub: string;
+    email?: string;
+    name?: string;
+  };
+}
+
 // Get all location perimeters
-export async function GET(req: NextRequest) {
-  const session = await getSession();
+export async function GET() {
+  const session = (await getSession()) as Session | null;
   
   if (!session || !session.user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -41,7 +49,7 @@ export async function GET(req: NextRequest) {
 
 // Create a new location perimeter
 export async function POST(req: NextRequest) {
-  const session = await getSession();
+  const session = (await getSession()) as Session | null;
   
   if (!session || !session.user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -98,7 +106,7 @@ export async function POST(req: NextRequest) {
 
 // PUT to update a location perimeter
 export async function PUT(req: NextRequest) {
-  const session = await getSession();
+  const session = (await getSession()) as Session | null;
   
   if (!session || !session.user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -109,7 +117,7 @@ export async function PUT(req: NextRequest) {
 
     if (!id || !name || !latitude || !longitude || !radiusInMeters) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: id, name, latitude, longitude, radiusInMeters' },
         { status: 400 }
       );
     }
@@ -128,25 +136,24 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized. Managers only.' }, { status: 403 });
     }
 
-    const updatedLocation = await LocationPerimeter.findByIdAndUpdate(
-      id,
-      {
-        name,
-        latitude,
-        longitude,
-        radiusInMeters
-      },
-      { new: true }
-    );
-
-    if (!updatedLocation) {
-      return NextResponse.json({ error: 'Location not found' }, { status: 404 });
+    const locationPerimeter = await LocationPerimeter.findById(id);
+    
+    if (!locationPerimeter) {
+      return NextResponse.json({ error: 'Location perimeter not found' }, { status: 404 });
     }
+
+    // Update location perimeter
+    locationPerimeter.name = name;
+    locationPerimeter.latitude = latitude;
+    locationPerimeter.longitude = longitude;
+    locationPerimeter.radiusInMeters = radiusInMeters;
+
+    await locationPerimeter.save();
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Location updated successfully',
-      locationPerimeter: updatedLocation
+      message: 'Location perimeter updated successfully',
+      locationPerimeter
     });
   } catch (error) {
     console.error('Location update error:', error);
@@ -157,21 +164,20 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// DELETE a location perimeter
+// DELETE to remove a location perimeter
 export async function DELETE(req: NextRequest) {
-  const session = await getSession();
+  const session = (await getSession()) as Session | null;
   
   if (!session || !session.user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
   try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
+    const { id } = await req.json();
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Missing location ID' },
+        { error: 'Missing required field: id' },
         { status: 400 }
       );
     }
@@ -190,15 +196,17 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized. Managers only.' }, { status: 403 });
     }
 
-    const deletedLocation = await LocationPerimeter.findByIdAndDelete(id);
-
-    if (!deletedLocation) {
-      return NextResponse.json({ error: 'Location not found' }, { status: 404 });
+    const locationPerimeter = await LocationPerimeter.findById(id);
+    
+    if (!locationPerimeter) {
+      return NextResponse.json({ error: 'Location perimeter not found' }, { status: 404 });
     }
+
+    await locationPerimeter.deleteOne();
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Location deleted successfully'
+      message: 'Location perimeter deleted successfully'
     });
   } catch (error) {
     console.error('Location deletion error:', error);

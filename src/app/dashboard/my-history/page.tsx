@@ -1,37 +1,63 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import axios from 'axios';
 import Link from 'next/link';
 import { FaArrowLeft, FaCalendarAlt, FaMapMarkerAlt, FaClock, FaFileAlt } from 'react-icons/fa';
 import { format } from 'date-fns';
 
+interface Location {
+  latitude: number;
+  longitude: number;
+}
+
+interface ClockRecord {
+  _id: string;
+  clockInTime: Date;
+  clockInLocation: Location;
+  clockInNote: string;
+  clockOutTime: Date | null;
+  clockOutLocation: Location | null;
+  clockOutNote: string | null;
+  totalHours: number | null;
+  locationName: string;
+}
+
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+  message?: string;
+}
+
 export default function MyHistoryPage() {
-  const [clockRecords, setClockRecords] = useState<any[]>([]);
+  const [clockRecords, setClockRecords] = useState<ClockRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeFrame, setTimeFrame] = useState<'week' | 'month' | 'all'>('week');
 
-  useEffect(() => {
-    fetchClockRecords();
-  }, [timeFrame]);
-
-  const fetchClockRecords = async () => {
+  const fetchClockRecords = useCallback(async () => {
     try {
       setLoading(true);
       const response = await axios.get(`/api/user/clock-history?timeFrame=${timeFrame}`);
       setClockRecords(response.data.clockRecords);
       setLoading(false);
-    } catch (error: any) {
-      setError(error.response?.data?.error || 'Failed to fetch clock records');
+    } catch (error) {
+      const apiError = error as ApiError;
+      setError(apiError.response?.data?.error || 'Failed to fetch clock records');
       setLoading(false);
     }
-  };
+  }, [timeFrame]);
+
+  useEffect(() => {
+    fetchClockRecords();
+  }, [fetchClockRecords]);
 
   // Mock data for demonstration
-  const mockClockRecords = [
+  const mockClockRecords: ClockRecord[] = [
     {
       _id: '1',
       clockInTime: new Date(Date.now() - 3600000 * 24 * 2),
@@ -98,8 +124,8 @@ export default function MyHistoryPage() {
               onChange={(e) => setTimeFrame(e.target.value as 'week' | 'month' | 'all')}
               className="rounded-md border border-gray-300 p-2 focus:border-blue-500 focus:outline-none"
             >
-              <option value="week">Last 7 Days</option>
-              <option value="month">Last 30 Days</option>
+              <option value="week">Last Week</option>
+              <option value="month">Last Month</option>
               <option value="all">All Time</option>
             </select>
           </div>
@@ -116,87 +142,74 @@ export default function MyHistoryPage() {
             <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
           </div>
         ) : (
-          <div className="space-y-6">
-            {data.length > 0 ? (
-              <div className="overflow-hidden rounded-lg bg-white shadow">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Date
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Location
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Clock In
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Clock Out
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Total Hours
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Notes
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
-                      {data.map((record) => (
-                        <tr key={record._id}>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                            {format(new Date(record.clockInTime), 'MMM dd, yyyy')}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            <div className="flex items-center">
-                              <FaMapMarkerAlt className="mr-1 text-gray-400" /> 
-                              {record.locationName || 'Unknown Location'}
+          <div className="overflow-hidden rounded-lg bg-white shadow">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Location
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Clock In
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Clock Out
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Hours
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {data.map((record) => (
+                  <tr key={record._id}>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+                      {formatDateTime(record.clockInTime)}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                      <div className="flex items-center">
+                        <FaMapMarkerAlt className="mr-2 text-gray-400" />
+                        {record.locationName}
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                      <div className="flex items-center">
+                        <FaClock className="mr-2 text-gray-400" />
+                        {formatDateTime(record.clockInTime)}
+                      </div>
+                      {record.clockInNote && (
+                        <div className="mt-1 text-xs text-gray-400">
+                          {record.clockInNote}
+                        </div>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                      {record.clockOutTime ? (
+                        <>
+                          <div className="flex items-center">
+                            <FaClock className="mr-2 text-gray-400" />
+                            {formatDateTime(record.clockOutTime)}
+                          </div>
+                          {record.clockOutNote && (
+                            <div className="mt-1 text-xs text-gray-400">
+                              {record.clockOutNote}
                             </div>
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            <div className="flex items-center">
-                              <FaClock className="mr-1 text-green-500" />
-                              {formatDateTime(record.clockInTime)}
-                            </div>
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            {record.clockOutTime ? (
-                              <div className="flex items-center">
-                                <FaClock className="mr-1 text-red-500" />
-                                {formatDateTime(record.clockOutTime)}
-                              </div>
-                            ) : (
-                              <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-                                Active
-                              </span>
-                            )}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            {formatHours(record.totalHours)}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            {(record.clockInNote || record.clockOutNote) ? (
-                              <button className="flex items-center text-blue-600 hover:underline">
-                                <FaFileAlt className="mr-1" />
-                                View Notes
-                              </button>
-                            ) : (
-                              <span className="text-gray-400">No notes</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-lg bg-white p-8 text-center shadow-md">
-                <p className="text-lg text-gray-600">No clock records found for the selected time period.</p>
-              </div>
-            )}
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-yellow-600">In Progress</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                      {formatHours(record.totalHours)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
